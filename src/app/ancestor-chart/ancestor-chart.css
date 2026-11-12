@@ -126,7 +126,7 @@
 .editor {
   width: 280px;
   flex-shrink: 0;
-  padding: 1rem;
+  padding: 1rem 1rem 5rem; /* extra bottom space clears the Netlify badge */
   background: #fff;
   border-left: 1px solid #ddd;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
