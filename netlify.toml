@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = "dist/genealogy/browser"
+
+# Route API calls to the serverless function (must come before the SPA fallback).
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA fallback so client-side navigation serves index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

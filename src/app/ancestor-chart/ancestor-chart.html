@@ -1,0 +1,83 @@
+<div class="toolbar">
+  <h1 class="app-title">STENGELE GENEALOGY</h1>
+  <select class="genealogy-picker" [value]="currentName()" (change)="onGenealogyChange($event)">
+    @for (name of genealogies(); track name) {
+      <option [value]="name">{{ name }}</option>
+    }
+  </select>
+  <label class="file-button">
+    Import
+    <input type="file" accept=".ged,.gedcom" (change)="onFileSelected($event)" hidden />
+  </label>
+  <button class="export-button" (click)="exportGedcom()" [disabled]="!people().length">Export</button>
+  <button class="delete-genealogy" (click)="deleteGenealogy()" [disabled]="!currentName()">Delete</button>
+  @if (saveStatus() === 'saving') {
+    <span class="save-status">Saving…</span>
+  } @else if (saveStatus() === 'saved') {
+    <span class="save-status saved">Saved</span>
+  } @else if (saveStatus() === 'error') {
+    <span class="save-status error">Save failed</span>
+  }
+
+</div>
+
+@if (error()) {
+  <div class="error">{{ error() }}</div>
+}
+
+<div class="chart-area">
+  <div class="chart-scroll">
+    <div class="chart-host" #chartHost>
+      <svg id="genealogy-ancestor-chart"></svg>
+    </div>
+  </div>
+
+  @if (editing(); as id) {
+    <aside class="editor">
+      <h3>Edit person</h3>
+      <label>First name
+        <input type="text" [(ngModel)]="form['firstName']" />
+      </label>
+      <label>Last name
+        <input type="text" [(ngModel)]="form['lastName']" />
+      </label>
+
+      <fieldset>
+        <legend>Birth</legend>
+        <label>Date
+          <input type="text" [(ngModel)]="form['birthDate']" placeholder="e.g. 12 MAR 1955" />
+        </label>
+        <label>Place
+          <input type="text" [(ngModel)]="form['birthPlace']" />
+        </label>
+      </fieldset>
+      <fieldset>
+        <legend>Death</legend>
+        <label>Date
+          <input type="text" [(ngModel)]="form['deathDate']" placeholder="e.g. 3 OCT 2001" />
+        </label>
+        <label>Place
+          <input type="text" [(ngModel)]="form['deathPlace']" />
+        </label>
+        <label>Buried
+          <input type="text" [(ngModel)]="form['burial']" placeholder="e.g. Greenwood Cemetery" />
+        </label>
+      </fieldset>
+      @if (editingIndi()) {
+        @if (!editingIndi()!.famc || missingParentSlot() === 'both') {
+          <button class="add-parents" (click)="addParents()">Add parents</button>
+        }
+        @if (missingParentSlot() === 'husb' || missingParentSlot() === 'wife') {
+          <button class="add-parents" (click)="addParent()">Add parent</button>
+        }
+        @if (isLeafPerson()) {
+          <button class="delete-person" (click)="deletePerson()">Delete person</button>
+        }
+      }
+      <div class="editor-actions">
+        <button class="save" (click)="saveEdit()">Save</button>
+        <button (click)="cancelEdit()">Cancel</button>
+      </div>
+    </aside>
+  }
+</div>

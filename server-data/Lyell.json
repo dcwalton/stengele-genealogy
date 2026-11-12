@@ -1,0 +1,1 @@
+{"indis":[{"id":"I1","firstName":"Lyell","lastName":"Stengele","sex":"M","birth":{"type":"BIRT","date":{"text":"6/24/1924"},"place":"Allentown, PA"},"events":[{"type":"BURI","place":"Grandview Cemetery, Allentown"}],"hideId":true,"hideSex":true,"death":{"type":"DEAT","date":{"text":"12/17/2016"},"place":"Allentown, PA"},"famc":"N1P"}],"fams":[{"id":"N1P","children":["I1"]}]}
