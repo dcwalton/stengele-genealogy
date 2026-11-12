@@ -148,11 +148,23 @@
 }
 
 .editor input,
-.editor select {
+.editor select,
+.editor textarea {
   padding: 0.4rem 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
+}
+
+.editor label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.editor label.checkbox input {
+  width: auto;
 }
 
 .editor fieldset {

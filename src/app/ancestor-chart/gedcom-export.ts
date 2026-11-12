@@ -123,6 +123,11 @@ function emitIndi(lines: string[], indi: JsonIndi): void {
   for (const note of indi.notes ?? []) {
     lines.push(`1 NOTE ${cleanText(note)}`);
   }
+  // Military service has no standard GEDCOM field; export as NOTE lines.
+  // On import they land in notes and loadJson migrates them to `military`.
+  for (const service of (indi as JsonIndi & { military?: string[] }).military ?? []) {
+    lines.push(`1 NOTE ${cleanText(service)}`);
+  }
   for (const image of indi.images ?? []) {
     lines.push(`1 OBJE`);
     lines.push(`2 FILE ${cleanText(image.url)}`);

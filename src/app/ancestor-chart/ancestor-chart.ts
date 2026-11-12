@@ -22,6 +22,12 @@ import { jsonToGedcom } from './gedcom-export';
 
 const SVG_ID = 'genealogy-ancestor-chart';
 
+/** Individual records may carry a custom `military` list (e.g. ['Civil War']). */
+type IndiWithMilitary = JsonIndi & { military?: string[] };
+
+/** Canonical military-service labels, lowercase for matching. */
+const MILITARY_LABELS = ['Civil War', 'World War I', 'World War II'];
+
 // Topola only draws a family (marriage) box when the renderer reports
 // details for it. Returning none hides all marriage date/place boxes
 // while keeping the underlying data intact.
@@ -198,6 +204,9 @@ export class AncestorChartComponent implements AfterViewInit {
   /** Form model for the edit panel, bound with ngModel. */
   protected form: Record<string, string> = {};
 
+  /** Military-service checkboxes in the edit panel. */
+  protected military = { civilWar: false, worldWar1: false, worldWar2: false };
+
   private chartHandle?: ChartHandle;
   private json?: JsonGedcomData;
   private nextBlankId = 1;
@@ -289,6 +298,29 @@ export class AncestorChartComponent implements AfterViewInit {
         indi.hideId = true;
         indi.hideSex = true;
       }
+      // Migrate military-service note lines into the dedicated `military`
+      // field (used by older saves and GEDCOM NOTE imports).
+      const militaryLookup = new Map(MILITARY_LABELS.map((l) => [l.toLowerCase(), l]));
+      for (const indi of json.indis) {
+        const ext = indi as IndiWithMilitary;
+        const notes = indi.notes ?? [];
+        const kept: string[] = [];
+        const found: string[] = [];
+        for (const note of notes) {
+          const label = militaryLookup.get(note.trim().toLowerCase());
+          if (label) {
+            found.push(label);
+          } else {
+            kept.push(note);
+          }
+        }
+        if (found.length) {
+          ext.military = [...new Set([...(ext.military ?? []), ...found])];
+        }
+        if (found.length || kept.length !== notes.length) {
+          indi.notes = kept.length ? kept : undefined;
+        }
+      }
       this.json = json;
       this.error.set('');
       this.saveStatus.set('idle');
@@ -344,6 +376,66 @@ export class AncestorChartComponent implements AfterViewInit {
       const restSpan = document.createElementNS(SVG_NS, 'tspan');
       restSpan.textContent = rest;
       el.append(labelSpan, restSpan);
+    });
+    this.renderMilitaryBadges(svg);
+  }
+
+  /**
+   * Draws a gold star badge (lettered C/I/II) at the top-right corner of each
+   * person box whose record lists military service.
+   */
+  private renderMilitaryBadges(svg: SVGSVGElement | null): void {
+    if (!svg || !this.json) {
+      return;
+    }
+    const letters: Record<string, string> = {
+      'civil war': 'C',
+      'world war i': 'I',
+      'world war ii': 'II',
+    };
+    const NS = 'http://www.w3.org/2000/svg';
+    svg.querySelectorAll('g.indi').forEach((g) => {
+      const data = (g as unknown as { __data__?: { indi?: { id: string; width: number } } }).__data__;
+      const id = data?.indi?.id;
+      const indi = id ? (this.json!.indis.find((i) => i.id === id) as IndiWithMilitary | undefined) : undefined;
+      const badges = (indi?.military ?? [])
+        .map((m) => letters[m.trim().toLowerCase()])
+        .filter((l): l is string => !!l);
+      const width = data?.indi?.width ?? 0;
+      if (!badges.length || !width) {
+        return;
+      }
+      const badgeGroup = document.createElementNS(NS, 'g');
+      badgeGroup.setAttribute('class', 'military-badge');
+      badges.forEach((letter, index) => {
+        const cx = width - 18 - index * 27;
+        const cy = 17;
+        const outer = 12;
+        const inner = outer * 0.42;
+        const points: string[] = [];
+        for (let i = 0; i < 10; i++) {
+          const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+          const radius = i % 2 === 0 ? outer : inner;
+          points.push(`${(cx + radius * Math.cos(angle)).toFixed(1)},${(cy + radius * Math.sin(angle)).toFixed(1)}`);
+        }
+        const star = document.createElementNS(NS, 'polygon');
+        star.setAttribute('points', points.join(' '));
+        star.setAttribute('fill', '#ffd54f');
+        star.setAttribute('stroke', '#a07000');
+        star.setAttribute('stroke-width', '1');
+        badgeGroup.appendChild(star);
+        const text = document.createElementNS(NS, 'text');
+        text.setAttribute('x', String(cx));
+        text.setAttribute('y', String(cy + 0.5));
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'central');
+        text.setAttribute('font-size', letter === 'II' ? '9' : '10');
+        text.setAttribute('font-weight', '700');
+        text.setAttribute('fill', '#4e342e');
+        text.textContent = letter;
+        badgeGroup.appendChild(text);
+      });
+      g.appendChild(badgeGroup);
     });
   }
 
@@ -500,7 +592,12 @@ export class AncestorChartComponent implements AfterViewInit {
       deathDate: eventDateText(indi.death),
       deathPlace: indi.death?.place ?? '',
       burial: burialEvent(indi)?.place ?? '',
+      notes: (indi.notes ?? []).join('\n'),
     };
+    const service = new Set(((indi as IndiWithMilitary).military ?? []).map((m) => m.toLowerCase()));
+    this.military.civilWar = service.has('civil war');
+    this.military.worldWar1 = service.has('world war i');
+    this.military.worldWar2 = service.has('world war ii');
     this.editing.set(id);
   }
 
@@ -535,6 +632,17 @@ export class AncestorChartComponent implements AfterViewInit {
     } else if (!indi.events.length) {
       indi.events = undefined;
     }
+    const notes = (this.form['notes'] ?? '')
+      .split('\n')
+      .map((n) => n.trim())
+      .filter(Boolean);
+    indi.notes = notes.length ? notes : undefined;
+    const service = [
+      this.military.civilWar ? 'Civil War' : null,
+      this.military.worldWar1 ? 'World War I' : null,
+      this.military.worldWar2 ? 'World War II' : null,
+    ].filter((n): n is string => n !== null);
+    (indi as IndiWithMilitary).military = service.length ? service : undefined;
   }
 
   private refreshChart(): void {
