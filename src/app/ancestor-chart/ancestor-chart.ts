@@ -326,6 +326,25 @@ export class AncestorChartComponent implements AfterViewInit {
     const svg = this.chartHost.nativeElement.querySelector('svg');
     svg?.replaceChildren();
     this.chartHandle.render({ startIndi });
+    // Color just the "born:"/"died:"/"buried:" labels (not the data after
+    // the colon) to match the buttons, via tspans inside the detail text.
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    svg?.querySelectorAll('text.details').forEach((el) => {
+      const text = el.textContent ?? '';
+      const match = /^(born|died|buried):/.exec(text);
+      if (!match) {
+        return;
+      }
+      const label = text.slice(0, match[0].length);
+      const rest = text.slice(match[0].length);
+      el.textContent = '';
+      const labelSpan = document.createElementNS(SVG_NS, 'tspan');
+      labelSpan.textContent = label;
+      labelSpan.style.fill = '#3f51b5';
+      const restSpan = document.createElementNS(SVG_NS, 'tspan');
+      restSpan.textContent = rest;
+      el.append(labelSpan, restSpan);
+    });
   }
 
   /** The individual currently open in the edit panel, if any. */

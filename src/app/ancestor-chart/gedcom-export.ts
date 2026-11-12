@@ -50,12 +50,14 @@ function formatDateOrRange(dor: DateOrRange | undefined): string {
   return '';
 }
 
-function eventTag(event: JsonEvent): string {
-  const type = event.type?.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return type || 'EVEN';
-}
 
-function emitEvent(lines: string[], level: number, tag: string, event: JsonEvent | undefined): void {
+function emitEvent(
+  lines: string[],
+  level: number,
+  tag: string,
+  event: JsonEvent | undefined,
+  typeTag?: string,
+): void {
   if (!event) {
     return;
   }
@@ -64,6 +66,9 @@ function emitEvent(lines: string[], level: number, tag: string, event: JsonEvent
     return;
   }
   lines.push(`${level} ${tag}`);
+  if (typeTag) {
+    lines.push(`${level + 1} TYPE ${cleanText(typeTag)}`);
+  }
   const dateText = formatDateOrRange(event);
   if (dateText) {
     lines.push(`${level + 1} DATE ${cleanText(dateText)}`);
@@ -110,7 +115,9 @@ function emitIndi(lines: string[], indi: JsonIndi): void {
   emitEvent(lines, 1, 'BIRT', indi.birth);
   emitEvent(lines, 1, 'DEAT', indi.death);
   for (const event of indi.events ?? []) {
-    emitEvent(lines, 1, eventTag(event), event);
+    // Custom events (e.g. BURI) are written as EVEN + TYPE so Topola's parser
+    // picks them back up on import; a bare "1 BURI" would be dropped.
+    emitEvent(lines, 1, 'EVEN', event, event.type ?? 'EVEN');
   }
 
   for (const note of indi.notes ?? []) {
