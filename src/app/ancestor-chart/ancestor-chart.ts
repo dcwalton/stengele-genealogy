@@ -26,7 +26,7 @@ const SVG_ID = 'genealogy-ancestor-chart';
 type IndiWithMilitary = JsonIndi & { military?: string[] };
 
 /** Canonical military-service labels, lowercase for matching. */
-const MILITARY_LABELS = ['Civil War', 'World War I', 'World War II'];
+const MILITARY_LABELS = ['Revolutionary War', 'Civil War', 'World War I', 'World War II'];
 
 // Topola only draws a family (marriage) box when the renderer reports
 // details for it. Returning none hides all marriage date/place boxes
@@ -205,7 +205,12 @@ export class AncestorChartComponent implements AfterViewInit {
   protected form: Record<string, string> = {};
 
   /** Military-service checkboxes in the edit panel. */
-  protected military = { civilWar: false, worldWar1: false, worldWar2: false };
+  protected military = {
+    revolutionaryWar: false,
+    civilWar: false,
+    worldWar1: false,
+    worldWar2: false,
+  };
 
   private chartHandle?: ChartHandle;
   private json?: JsonGedcomData;
@@ -389,6 +394,7 @@ export class AncestorChartComponent implements AfterViewInit {
       return;
     }
     const letters: Record<string, string> = {
+      'revolutionary war': 'R',
       'civil war': 'C',
       'world war i': 'I',
       'world war ii': 'II',
@@ -595,6 +601,7 @@ export class AncestorChartComponent implements AfterViewInit {
       notes: (indi.notes ?? []).join('\n'),
     };
     const service = new Set(((indi as IndiWithMilitary).military ?? []).map((m) => m.toLowerCase()));
+    this.military.revolutionaryWar = service.has('revolutionary war');
     this.military.civilWar = service.has('civil war');
     this.military.worldWar1 = service.has('world war i');
     this.military.worldWar2 = service.has('world war ii');
@@ -638,6 +645,7 @@ export class AncestorChartComponent implements AfterViewInit {
       .filter(Boolean);
     indi.notes = notes.length ? notes : undefined;
     const service = [
+      this.military.revolutionaryWar ? 'Revolutionary War' : null,
       this.military.civilWar ? 'Civil War' : null,
       this.military.worldWar1 ? 'World War I' : null,
       this.military.worldWar2 ? 'World War II' : null,
