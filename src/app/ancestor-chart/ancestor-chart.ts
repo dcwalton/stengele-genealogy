@@ -138,7 +138,7 @@ type IndiDetailLine = { symbol: string; text: string };
   if (deathPlace) {
     lines.push(`died: ${deathPlace}`);
   }
-  const burial = indi.getEvents?.()?.find((e) => e.type?.toUpperCase() === 'BURI');
+  const burial = indi.getEvents?.()?.find((e) => e?.type?.toUpperCase() === 'BURI');
   const burialPlace = burial?.place?.trim();
   if (burialPlace) {
     lines.push(`buried: ${burialPlace}`);
@@ -165,7 +165,7 @@ function buildEvent(dateText: string, place: string, type: string): JsonEvent | 
 
 /** Finds a BURI (burial) event on an individual, if present. */
 function burialEvent(indi: JsonIndi): JsonEvent | undefined {
-  return indi.events?.find((e) => e.type?.toUpperCase() === 'BURI');
+  return indi.events?.find((e) => e?.type?.toUpperCase() === 'BURI');
 }
 
 /** Extracts the display text of a JsonEvent's date for editing. */
@@ -302,6 +302,14 @@ export class AncestorChartComponent implements AfterViewInit {
       for (const indi of json.indis) {
         indi.hideId = true;
         indi.hideSex = true;
+        // Topola's parser can leave undefined entries in events (bare EVEN
+        // records with no date/place); drop them.
+        if (indi.events) {
+          indi.events = indi.events.filter((e): e is JsonEvent => !!e);
+          if (!indi.events.length) {
+            indi.events = undefined;
+          }
+        }
       }
       // Migrate military-service note lines into the dedicated `military`
       // field (used by older saves and GEDCOM NOTE imports).
@@ -327,6 +335,15 @@ export class AncestorChartComponent implements AfterViewInit {
         }
       }
       this.json = json;
+      // Continue blank-id numbering past anything already in the data so
+      // repeated add-parent cycles never reuse an existing id.
+      this.nextBlankId = 1;
+      for (const record of [...json.indis, ...json.fams]) {
+        const match = /^N(\d+)/.exec(record.id);
+        if (match) {
+          this.nextBlankId = Math.max(this.nextBlankId, Number(match[1]) + 1);
+        }
+      }
       this.error.set('');
       this.saveStatus.set('idle');
       this.editing.set(null);
@@ -490,7 +507,8 @@ export class AncestorChartComponent implements AfterViewInit {
       ? this.json.fams.find((f) => f.id === indi.famc)
       : undefined;
     if (indi.famc && !fam) {
-      return;
+      // Dangling famc pointer – treat as having no family.
+      indi.famc = undefined;
     }
     const needHusb = !fam?.husb;
     const needWife = !fam?.wife;
@@ -509,33 +527,13 @@ export class AncestorChartComponent implements AfterViewInit {
     }
     if (needHusb) {
       const id = `N${n}H`;
-      this.json.indis.push({ id, hideId: true, hideSex: true });
+      this.json.indis.push({ id, hideId: true, hideSex: true, fams: [fam.id] });
       fam.husb = id;
     }
     if (needWife) {
       const id = `N${n}W`;
-      this.json.indis.push({ id, hideId: true, hideSex: true });
+      this.json.indis.push({ id, hideId: true, hideSex: true, fams: [fam.id] });
       fam.wife = id;
-    }
-    this.refreshChart();
-  }
-
-  /**
-   * Adds a single blank individual into the one missing parent slot
-   * (husband or wife) of the edited person's family.
-   */
-  protected addParent(): void {
-    const slot = this.missingParentSlot();
-    const indi = this.editingIndi();
-    if (!indi || !this.json || (slot !== 'husb' && slot !== 'wife')) {
-      return;
-    }
-    const n = this.nextBlankId++;
-    const id = `N${n}${slot === 'husb' ? 'H' : 'W'}`;
-    this.json.indis.push({ id, hideId: true, hideSex: true });
-    const fam = this.json.fams.find((f) => f.id === indi.famc);
-    if (fam) {
-      fam[slot] = id;
     }
     this.refreshChart();
   }
@@ -633,7 +631,7 @@ export class AncestorChartComponent implements AfterViewInit {
     indi.birth = buildEvent(this.form['birthDate'] ?? '', this.form['birthPlace'] ?? '', 'BIRT');
     indi.death = buildEvent(this.form['deathDate'] ?? '', this.form['deathPlace'] ?? '', 'DEAT');
     const burialPlace = this.form['burial']?.trim() ?? '';
-    indi.events = (indi.events ?? []).filter((e) => e.type?.toUpperCase() !== 'BURI');
+    indi.events = (indi.events ?? []).filter((e) => e?.type?.toUpperCase() !== 'BURI');
     if (burialPlace) {
       indi.events.push({ type: 'BURI', place: burialPlace });
     } else if (!indi.events.length) {

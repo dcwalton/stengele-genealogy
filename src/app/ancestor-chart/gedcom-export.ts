@@ -117,7 +117,7 @@ function emitIndi(lines: string[], indi: JsonIndi): void {
   for (const event of indi.events ?? []) {
     // Custom events (e.g. BURI) are written as EVEN + TYPE so Topola's parser
     // picks them back up on import; a bare "1 BURI" would be dropped.
-    emitEvent(lines, 1, 'EVEN', event, event.type ?? 'EVEN');
+    emitEvent(lines, 1, 'EVEN', event, event?.type ?? 'EVEN');
   }
 
   for (const note of indi.notes ?? []) {
